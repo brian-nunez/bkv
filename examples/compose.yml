@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis_server
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server 
+      --requirepass testing_password
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
