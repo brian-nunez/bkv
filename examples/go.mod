@@ -2,16 +2,18 @@ module bkv/testing
 
 go 1.25.0
 
-replace github.com/brian-nunez/bkv => ../
+// use for local testing
+// replace github.com/brian-nunez/bkv => ../
+//
+// replace github.com/brian-nunez/bkv/drivers/local => ../drivers/local
+//
+// replace github.com/brian-nunez/bkv/drivers/redis => ../drivers/redis
 
-replace github.com/brian-nunez/bkv/drivers/local => ../drivers/local
-
-replace github.com/brian-nunez/bkv/drivers/redis => ../drivers/redis
-
+// use for testing tagged versions
 require (
-	github.com/brian-nunez/bkv v0.0.0-00010101000000-000000000000
-	github.com/brian-nunez/bkv/drivers/local v0.0.0-00010101000000-000000000000
-	github.com/brian-nunez/bkv/drivers/redis v0.0.0-00010101000000-000000000000
+	github.com/brian-nunez/bkv v1.0.2
+	github.com/brian-nunez/bkv/drivers/local v1.0.2
+	github.com/brian-nunez/bkv/drivers/redis v1.0.2
 )
 
 require (
