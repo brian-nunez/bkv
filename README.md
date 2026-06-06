@@ -8,12 +8,14 @@ Current drivers:
 
 - `local` — in-memory map-based store
 - `redis` — Redis-backed store using `github.com/redis/go-redis/v9`
+- `sqlite` — SQLite-backed store using Go's `database/sql` package with a SQLite driver
 
 ## Features
 
 - Driver registration pattern
 - Redis support
 - Local in-memory support
+- SQLite support
 - TTL support
 - Key existence checks
 - Delete support
@@ -33,6 +35,7 @@ Install the drivers you want to use:
 ```bash
 go get github.com/brian-nunez/bkv/drivers/local
 go get github.com/brian-nunez/bkv/drivers/redis
+go get github.com/brian-nunez/bkv/drivers/sqlite
 ```
 
 ## Usage
@@ -61,7 +64,7 @@ func main() {
 	conn, err := bkv.New(redis.Config{
 		Secure:   false,
 		Password: "testing_password",
-		Server:   "localhost:6379",
+		Addr:     "localhost:6379",
 		DB:       0,
 		Prefix:   "myapp:",
 	})
@@ -131,6 +134,62 @@ func main() {
 }
 ```
 
+### SQLite
+
+The SQLite driver stores key/value data in a SQLite database.
+
+It can use either a file-backed database or an in-memory database.
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/brian-nunez/bkv"
+	"github.com/brian-nunez/bkv/drivers/sqlite"
+)
+
+func main() {
+	conn, err := bkv.New(sqlite.Config{
+		Path:   "bkv.db",
+		Prefix: "myapp:",
+		Table:  "bkv",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	ctx := context.Background()
+
+	err = conn.Set(ctx, "testing", "hello sqlite", time.Minute)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	val, err := conn.Get(ctx, "testing")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(val)
+}
+```
+
+### SQLite In-Memory
+
+```go
+conn, err := bkv.New(sqlite.Config{
+	Path: ":memory:",
+})
+```
+
+If `Path` is empty, the SQLite driver defaults to `:memory:`.
+
 ## Interface
 
 All drivers implement the same `bkv.Store` interface.
@@ -164,11 +223,11 @@ This allows the app to create stores through the root package:
 
 ```go
 conn, err := bkv.New(redis.Config{
-	Server: "localhost:6379",
+	Addr: "localhost:6379",
 })
 ```
 
-The root package does not need to know about Redis, local storage, or any future driver directly.
+The root package does not need to know about Redis, local storage, SQLite, or any future driver directly.
 
 ## Redis Configuration
 
@@ -177,20 +236,20 @@ type Config struct {
 	Secure   bool
 	Username string
 	Password string
-	Server   string
+	Addr     string
 	DB       int
 	Prefix   string
 }
 ```
 
-### Fields
+### Redis Fields
 
 | Field | Description |
 |---|---|
 | `Secure` | Enables TLS when connecting to Redis |
-| `Username` | Redis username (Optional for most instances) |
+| `Username` | Redis username. Optional for most instances |
 | `Password` | Redis password |
-| `Server` | Redis server address, for example `localhost:6379` |
+| `Addr` | Redis server address, for example `localhost:6379` |
 | `DB` | Redis database number |
 | `Prefix` | Optional key prefix for namespacing |
 
@@ -198,9 +257,9 @@ Example:
 
 ```go
 conn, err := bkv.New(redis.Config{
-	Secure:   true,
+	Secure:   false,
 	Password: "password",
-	Server:   "localhost:6379",
+	Addr:     "localhost:6379",
 	DB:       0,
 	Prefix:   "myapp:",
 })
@@ -216,16 +275,58 @@ conn, err := bkv.New(local.Config{})
 
 The local driver stores values in memory and supports TTL expiration.
 
+Because it is in-memory, data is lost when the process exits.
+
+## SQLite Configuration
+
+```go
+type Config struct {
+	Path   string
+	Prefix string
+	Table  string
+}
+```
+
+### SQLite Fields
+
+| Field | Description |
+|---|---|
+| `Path` | SQLite database path. If empty, `:memory:` is used |
+| `Prefix` | Optional key prefix for namespacing |
+| `Table` | Optional SQLite table name. If empty, `bkv` is used |
+
+Example:
+
+```go
+conn, err := bkv.New(sqlite.Config{
+	Path:   "bkv.db",
+	Prefix: "myapp:",
+	Table:  "bkv",
+})
+```
+
+The SQLite driver creates the table automatically if it does not already exist.
+
+The default table schema is:
+
+```sql
+CREATE TABLE IF NOT EXISTS bkv (
+	key TEXT PRIMARY KEY,
+	value TEXT NOT NULL,
+	expires_at INTEGER NULL
+);
+```
+
 ## Errors
 
 Common errors are exposed by the root package.
 
 ```go
 var (
-	ErrUnknownDriver = errors.New("bkv: unknown driver")
-	ErrInvalidConfig = errors.New("bkv: invalid config")
-	ErrKeyNotFound   = errors.New("bkv: key not found")
-	ErrStoreClosed   = errors.New("bkv: store closed")
+	ErrUnknownDriver = errors.New("UNKNOWN_DRIVER")
+	ErrInvalidConfig = errors.New("INVALID_CONFIG")
+	ErrKeyNotFound   = errors.New("KEY_NOT_FOUND")
+	ErrStoreClosed   = errors.New("STORE_CLOSED")
 )
 ```
 
@@ -278,6 +379,10 @@ The Redis driver uses `SCAN` for key discovery instead of `KEYS`.
 
 This is safer for larger Redis databases because `KEYS` can block Redis when the keyspace grows.
 
+The local driver is best for tests, development, and process-local caching.
+
+The SQLite driver is best when you want local durability without running a separate server.
+
 ## Planned Drivers
 
 Possible future drivers:
@@ -285,11 +390,9 @@ Possible future drivers:
 - Valkey
 - Dragonfly
 - BadgerDB
-- SQLite
 - BoltDB
 - DynamoDB
 
 ## License
 
 MIT
-
