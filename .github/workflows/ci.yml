@@ -1,0 +1,67 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+
+  build-bkv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: './go.mod'
+
+    - name: Test
+      run: make tests
+
+
+  build-sqlite:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: './drivers/sqlite/go.mod'
+
+    - name: Test
+      run: cd ./drivers/sqlite && make tests
+
+  build-local:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: './drivers/local/go.mod'
+
+    - name: Test
+      run: cd ./drivers/local && make tests
+
+  build-redis:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: './drivers/redis/go.mod'
+
+    - name: Test
+      run: cd ./drivers/redis && make tests
+
